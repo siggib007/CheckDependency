@@ -1,3 +1,3 @@
-import MultiSQL
-help(MultiSQL)
+import CheckDepend
+help(CheckDepend)
  

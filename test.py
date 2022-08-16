@@ -6,7 +6,7 @@ Author Siggi Bjarnason Copyright 2022
 
 '''
 # Import libraries
-import MultiSQL
+import CheckDepend
 import os
 import time
 import sys
@@ -92,7 +92,7 @@ def main():
     if strDBType == "sqlite":
       strServer = strVault
     print("Attempting {} connection to {} using username {}".format(strDBType,strServer,strDBUser))
-    dbConn = MultiSQL.Conn(DBType=strDBType, Server=strServer,
+    dbConn = CheckDepend.Conn(DBType=strDBType, Server=strServer,
                          DBUser=strDBUser, DBPWD=strDBPWD, Database=strInitialDB)
     if isinstance(dbConn,str):
       LogEntry("Connection failed: {}".format(dbConn))
@@ -133,17 +133,17 @@ def main():
             "Since this is MS SQL and we are creating a table, need to check if the table exists")
         strSQL = "select OBJECT_ID('{}', 'U')".format(strTable)
         LogEntry("Executing the query : {}".format(strSQL))
-        dbCursor = MultiSQL.Query(SQL=strSQL, dbConn=dbConn)
+        dbCursor = CheckDepend.Query(SQL=strSQL, dbConn=dbConn)
         strReturn = dbCursor.fetchone()
         if strReturn[0] is None:
-          dbCursor = MultiSQL.Query(SQL=strTableCreate, dbConn=dbConn)
+          dbCursor = CheckDepend.Query(SQL=strTableCreate, dbConn=dbConn)
           print("Query complete.")
           if isinstance(dbCursor, str):
             LogEntry("Results is only the following string: {}".format(dbCursor))
         else:
           print("Table already exists")
       else:
-        dbCursor = MultiSQL.Query(SQL=strTableCreate, dbConn=dbConn)
+        dbCursor = CheckDepend.Query(SQL=strTableCreate, dbConn=dbConn)
 
       if isinstance(dbCursor, str):
         LogEntry("Results is only the following string: {}".format(dbCursor))
@@ -151,31 +151,31 @@ def main():
         print("Query complete.")
 
       print("Now Executing {}".format(strDataInsert))
-      dbCursor = MultiSQL.Query(SQL=strDataInsert, dbConn=dbConn)
+      dbCursor = CheckDepend.Query(SQL=strDataInsert, dbConn=dbConn)
       if isinstance(dbCursor, str):
         LogEntry("Results is only the following string: {}".format(dbCursor))
       else:
         print("Query complete.")
       print("Now Executing {}".format(strDataUpdate))
-      dbCursor = MultiSQL.Query(SQL=strDataUpdate, dbConn=dbConn)
+      dbCursor = CheckDepend.Query(SQL=strDataUpdate, dbConn=dbConn)
       if isinstance(dbCursor, str):
         LogEntry("Results is only the following string: {}".format(dbCursor))
       else:
         print("Query complete.")
       print("Now Executing {}".format(strDataDelete))
-      dbCursor = MultiSQL.Query(SQL=strDataDelete, dbConn=dbConn)
+      dbCursor = CheckDepend.Query(SQL=strDataDelete, dbConn=dbConn)
       if isinstance(dbCursor, str):
         LogEntry("Results is only the following string: {}".format(dbCursor))
       else:
         print("Query complete.")
       print("Now Executing {}".format(strDataInsert))
-      dbCursor = MultiSQL.Query(SQL=strDataInsert, dbConn=dbConn)
+      dbCursor = CheckDepend.Query(SQL=strDataInsert, dbConn=dbConn)
       if isinstance(dbCursor, str):
         LogEntry("Results is only the following string: {}".format(dbCursor))
       else:
         print("Query complete.")
       print("Now Executing {}".format(strDataSelect))
-      dbCursor = MultiSQL.Query(SQL=strDataSelect, dbConn=dbConn)
+      dbCursor = CheckDepend.Query(SQL=strDataSelect, dbConn=dbConn)
       if isinstance(dbCursor, str):
         LogEntry("Results is only the following string: {}".format(dbCursor))
       else:
