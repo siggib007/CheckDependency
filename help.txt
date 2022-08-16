@@ -1,0 +1,39 @@
+Help on module CheckDepend:
+
+NAME
+    CheckDepend
+
+DESCRIPTION
+    Module to check if depended module is already installed, and if not install it
+    uses pip list and ppip install
+    Author Siggi Bjarnason Copyright 2022
+    
+    
+    Uses the following packages, which CheckDependency will try to install if missing
+    pip install pymysql
+    pip install pyodbc
+    pip install psycopg2
+
+FUNCTIONS
+    CheckDependency(Module)
+        Function that installs missing depedencies
+        Parameters:
+          Module : The name of the module that should be installed
+        Returns:
+          dictionary object without output from the installation.
+            if the module needed to be installed
+              code: Return code from the installation
+              stdout: output from the installation
+              stderr: errors from the installation
+              args: list object with the arguments used during installation
+              success: true/false boolean indicating success.
+            if module was already installed so no action was taken
+              code: -5
+              stdout: Simple String: {module} version {x.y.z} already installed
+              stderr: Nonetype
+              args: module name as passed in
+              success: True as a boolean
+
+
+
+
