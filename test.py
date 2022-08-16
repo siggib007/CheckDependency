@@ -11,10 +11,38 @@ import os
 import time
 import sys
 import platform
-import uuid
-import random
+
 # End imports
 
+
+def GetFileHandle(strFileName, strperm):
+  """
+  This wraps error handling around standard file open function 
+  Parameters:
+    strFileName: Simple string with filename to be opened
+    strperm: single character string, usually w or r to indicate read vs write. other options such as "a" are valid too.
+  Returns:
+    File Handle object
+  """
+  dictModes = {}
+  dictModes["w"] = "writing"
+  dictModes["r"] = "reading"
+  dictModes["a"] = "appending"
+  dictModes["x"] = "opening"
+
+  cMode = strperm[0].lower()
+
+  try:
+    objFileOut = open(strFileName, strperm, encoding='utf8')
+    return objFileOut
+  except PermissionError:
+    print("unable to open output file {} for {}, "
+          "permission denied.".format(strFileName, dictModes[cMode]))
+    return("Permission denied")
+  except FileNotFoundError:
+    print("unable to open output file {} for {}, "
+          "Issue with the path".format(strFileName, dictModes[cMode]))
+    return("key not found")
 
 def FetchEnv(strVarName):
   """
@@ -44,7 +72,8 @@ def main():
   global strScriptName
   global strScriptHost
   global dbConn
-
+  
+  lstSysArg = sys.argv
   strScriptName = os.path.basename(sys.argv[0])
   strRealPath = os.path.realpath(sys.argv[0])
   strVersion = "{0}.{1}.{2}".format(
@@ -52,167 +81,26 @@ def main():
 
   strScriptHost = platform.node().upper()
 
-  print("This is a script to execute SQL command from different kind of databases. This is running under Python Version {}".format(strVersion))
+  print("This is a script to test if modules are installed. This is running under Python Version {}".format(strVersion))
   print("Running from: {}".format(strRealPath))
   now = time.asctime()
   print("The time now is {}".format(now))
 
-  strServer = FetchEnv("HOST")
-  strInitialDB = FetchEnv("DB")
-  strDBPWD = FetchEnv("DBPWD")
-  strDBUser = FetchEnv("DBUSSER")
-  strDBType = FetchEnv("STORE")
-  strTable = FetchEnv("TABLE") 
-  strVault = FetchEnv("VAULT")
+  #strVault = FetchEnv("VAULT")
+  if len(lstSysArg) > 1:
+    strCommand = lstSysArg[1]
+  else:
+    strCommand = input("Please provide module name: ")
 
-  dbConn = ""
-  dbCursor = None
+  dictResult = CheckDepend.CheckDependency(strCommand)
+  print("Dependency for {} good:{}".format(strCommand, dictResult["success"]))
+  objFileOut = GetFileHandle("DependencyOut.txt","w")
+  for strKey in dictResult:
+    objFileOut.write ("{}: {}\n".format(strKey,dictResult[strKey]))
 
-  #strTable = "tblTest"
-  dictColumn = {}
-  dictColumn["iID"] = ["int", "not null"]
-  dictColumn["strKey"] = ["text","not null"]
-  dictColumn["strValue"] = ["text", "not null"]
-  strMSSQLtext = "varchar(MAX)"
-  tStart = time.time()
-  lstDBTypes = ["mssql","mysql","postgres","sqlite"]
-
-  dictValues = {}
-  for strCol in dictColumn:
-    if dictColumn[strCol][0] == "text":
-      dictValues[strCol] = "'{}'".format(str(uuid.uuid4()))
-    elif dictColumn[strCol][0] == "int":
-      dictValues[strCol] = str(random.randint(10, 50))
-    else:
-      LogEntry("Type {} is unexpected".format(dictColumn[strCol][0]))
-
-  for strDBType in lstDBTypes:
-    print("\n******Testing {}******\n".format(strDBType))
-    iLineNum = 0
-    if strDBType == "sqlite":
-      strServer = strVault
-    print("Attempting {} connection to {} using username {}".format(strDBType,strServer,strDBUser))
-    dbConn = CheckDepend.Conn(DBType=strDBType, Server=strServer,
-                         DBUser=strDBUser, DBPWD=strDBPWD, Database=strInitialDB)
-    if isinstance(dbConn,str):
-      LogEntry("Connection failed: {}".format(dbConn))
-      continue
-    strTableCreate = "CREATE TABLE "
-    if strDBType != "mssql":
-      strTableCreate += "IF NOT EXISTS "
-    strTableCreate += strTable +"("
-    for strCol in dictColumn:
-      if strDBType == "mssql" and dictColumn[strCol][0] == "text":
-        strColType = strMSSQLtext
-      else:
-        strColType = " ".join(dictColumn[strCol])
-      strTableCreate += "{} {}, ".format(strCol,strColType)
-    strTableCreate = strTableCreate[:-2] + ");"
-    #LogEntry(strTableCreate)
-    strDataInsert = "INSERT INTO {}({}) VALUES({});".format(
-        strTable, ",".join(dictColumn.keys()), ",".join(dictValues.values()))
-    #LogEntry(strDataInsert)
-    lstKeys = list(dictColumn.keys())
-    lstValues = list(dictValues.values())
-    strDataUpdate = "UPDATE {} SET {} = {}, {} = {} WHERE {} = {}".format(
-        strTable, lstKeys[1], lstValues[2], lstKeys[2], lstValues[1], lstKeys[0], lstValues[0])
-    #LogEntry(strDataUpdate)
-    strDataDelete = "DELETE FROM {} WHERE {} = {}".format(
-        strTable, lstKeys[0], lstValues[0])
-    #LogEntry(strDataDelete)
-    strDataSelect = "SELECT {} FROM {};".format(
-        ", ".join(dictColumn.keys()), strTable)
-    #LogEntry(strDataSelect)
-
-    if dbConn is not None:
-      LogEntry("{} Database connection established to DB {} on server {}".format(
-          strDBType, strInitialDB, strServer))
-      LogEntry("Executing the query : {}".format(strTableCreate))
-      if strDBType == "mssql":
-        LogEntry(
-            "Since this is MS SQL and we are creating a table, need to check if the table exists")
-        strSQL = "select OBJECT_ID('{}', 'U')".format(strTable)
-        LogEntry("Executing the query : {}".format(strSQL))
-        dbCursor = CheckDepend.Query(SQL=strSQL, dbConn=dbConn)
-        strReturn = dbCursor.fetchone()
-        if strReturn[0] is None:
-          dbCursor = CheckDepend.Query(SQL=strTableCreate, dbConn=dbConn)
-          print("Query complete.")
-          if isinstance(dbCursor, str):
-            LogEntry("Results is only the following string: {}".format(dbCursor))
-        else:
-          print("Table already exists")
-      else:
-        dbCursor = CheckDepend.Query(SQL=strTableCreate, dbConn=dbConn)
-
-      if isinstance(dbCursor, str):
-        LogEntry("Results is only the following string: {}".format(dbCursor))
-      else:
-        print("Query complete.")
-
-      print("Now Executing {}".format(strDataInsert))
-      dbCursor = CheckDepend.Query(SQL=strDataInsert, dbConn=dbConn)
-      if isinstance(dbCursor, str):
-        LogEntry("Results is only the following string: {}".format(dbCursor))
-      else:
-        print("Query complete.")
-      print("Now Executing {}".format(strDataUpdate))
-      dbCursor = CheckDepend.Query(SQL=strDataUpdate, dbConn=dbConn)
-      if isinstance(dbCursor, str):
-        LogEntry("Results is only the following string: {}".format(dbCursor))
-      else:
-        print("Query complete.")
-      print("Now Executing {}".format(strDataDelete))
-      dbCursor = CheckDepend.Query(SQL=strDataDelete, dbConn=dbConn)
-      if isinstance(dbCursor, str):
-        LogEntry("Results is only the following string: {}".format(dbCursor))
-      else:
-        print("Query complete.")
-      print("Now Executing {}".format(strDataInsert))
-      dbCursor = CheckDepend.Query(SQL=strDataInsert, dbConn=dbConn)
-      if isinstance(dbCursor, str):
-        LogEntry("Results is only the following string: {}".format(dbCursor))
-      else:
-        print("Query complete.")
-      print("Now Executing {}".format(strDataSelect))
-      dbCursor = CheckDepend.Query(SQL=strDataSelect, dbConn=dbConn)
-      if isinstance(dbCursor, str):
-        LogEntry("Results is only the following string: {}".format(dbCursor))
-      else:
-        print("Query complete.")
-
-      if isinstance(dbCursor, str):
-        continue
-      if dbCursor is not None:
-        lstHeader = []
-        if dbCursor.description is not None:
-          for temp in dbCursor.description:
-            lstHeader.append(temp[0])
-          print(" | ".join(lstHeader))
-          print("="*120)
-
-          for dbRow in dbCursor:
-            strLine = ""
-            for field in dbRow:
-              strLine += str(field) + " | "
-            print(strLine[:-3])
-            iLineNum += 1
-
-          print("\nFetched {} lines.\n".format(iLineNum))
-      else:
-        print("Query exected successfully")
-    if dbConn is not None:
-      dbConn.close()
-
-  tStop = time.time()
-  iElapseSec = tStop - tStart
-  iMin, iSec = divmod(iElapseSec, 60)
-  iHours, iMin = divmod(iMin, 60)
-
+  objFileOut.close()
   now = time.asctime()
   LogEntry("Completed at {}".format(now))
-  LogEntry("Took {0:.2f} seconds to complete, which is {1} hours, {2} minutes and {3:.2f} seconds.".format(
-      iElapseSec, iHours, iMin, iSec))
   print("{} completed successfully on {}".format(
       strScriptName, strScriptHost))
 
